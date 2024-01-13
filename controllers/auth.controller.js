@@ -5,15 +5,24 @@ import User from "../models/User.js";
 export const create = async (req, res) => {
   const { email, password, name } = req.body;
 
-  // check if user already exists
   const isExist = await User.findOne({ email: email });
   if (isExist)
     return res.status(403).json({ error: "user email already exists" });
 
   try {
     const user = await User.create({ email, password, name });
+    const token = jwt.sign({ email }, process.env.JWT_SECRET);
+    user.tokens = token;
+    await user.save();
 
-    return res.status(201).json({ user: { id: user._id, name, email } });
+    return res.status(201).json({
+      profile: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+      token: token,
+    });
   } catch (error) {
     return res.status(422).json({ error: error.message });
   }
@@ -30,8 +39,8 @@ export const signIn = async (req, res) => {
   if (!isPasswordMatched)
     return res.status(403).json({ error: "email & password mismatch" });
 
-  const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
-  user.tokens.push(token); // store token to DB.
+  const token = jwt.sign({ email }, process.env.JWT_SECRET);
+  user.tokens = token;
   await user.save();
 
   res.json({
@@ -39,20 +48,44 @@ export const signIn = async (req, res) => {
       id: user._id,
       name: user.name,
       email: user.email,
+      isAdmin: user.isAdmin,
     },
     token: token,
   });
 };
 
+// auth check
+export const isAuth = async (req, res) => {
+  const clientToken = req.headers.authorization;
+  if (!clientToken)
+    return res.status(403).json({ error: "unauthorized request" });
+
+  const payload = jwt.verify(clientToken, process.env.JWT_SECRET);
+  // console.log(payload);
+
+  const email = payload.email;
+  const user = await User.findOne({ email: email, tokens: clientToken });
+  if (!user) return res.status(403).json({ error: "unauthorized request" });
+
+  res.json({
+    profile: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      isAdmin: user.isAdmin,
+    },
+    token: user.tokens,
+  });
+};
+
 // logout
 export const logout = async (req, res) => {
-  const { fromAll } = req.query;
-  const token = req.token;
+  const { email, token } = req.body;
 
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(403).json({ error: "user not found" });
+  const user = await User.findOne({ email: email, tokens: token });
+  if (!user) return res.status(403).json({ error: "User not found" });
 
-  user.tokens = [];
+  user.tokens = "";
   await user.save();
   res.json({ success: true });
 };

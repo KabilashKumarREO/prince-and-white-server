@@ -1,17 +1,17 @@
-import User from "@/models/User";
-import { JwtPayload, verify } from "jsonwebtoken";
+import User from "../models/User.js";
+import jwt from "jsonwebtoken";
 
 export const mustAuth = async (req, res, next) => {
   const { authorization } = req.headers;
-  const clientToken = authorization?.split("Bearer ")[1];
+  const clientToken = authorization;
   if (!clientToken)
     return res.status(403).json({ error: "unauthorized request" });
 
-  const payload = verify(clientToken, process.env.JWT_SECRET);
+  const payload = jwt.verify(clientToken, process.env.JWT_SECRET);
   // console.log(payload);
 
-  const id = payload.userId;
-  const user = await User.findOne({ _id: id, tokens: clientToken });
+  const email = payload.email;
+  const user = await User.findOne({ email: email, tokens: clientToken });
   if (!user) return res.status(403).json({ error: "unauthorized request" });
 
   req.user = {
