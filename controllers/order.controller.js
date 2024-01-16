@@ -63,10 +63,9 @@ export const getMyOrders = async (req, res) => {
   try {
     const { email } = req.body;
     console.log(email);
-    const orders = await Order.find({ email }).populate(
-      "cart",
-      "slug image title price"
-    );
+    const orders = await Order.find({ email })
+      .sort({ updatedAt: -1 })
+      .populate("cart", "slug image title price");
 
     if (!orders) {
       return res.status(400).json({ error: "Order not found." });
