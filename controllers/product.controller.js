@@ -3,7 +3,7 @@ import Product from "../models/Product.js";
 // get all products
 export const allProducts = async (req, res) => {
   try {
-    const products = await Product.find();
+    const products = await Product.find().sort({ updatedAt: -1 });
     res.json({ products });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -31,12 +31,40 @@ export const getCategoryProducts = async (req, res) => {
   try {
     const slug = req.query.categoryId;
     console.log(slug);
-    const products = await Product.find({ category: { $in: [slug] } });
+    const products = await Product.find({ category: { $in: [slug] } }).sort({
+      updatedAt: -1,
+    });
 
     if (products.length === 0)
       return res.status(400).json({ message: "Category not found" });
 
     return res.json({ products });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// add product
+export const addProduct = async (req, res) => {
+  try {
+    const { slug, title, price, description, image, category1, category2 } =
+      req.body;
+    const product = await Product.create({
+      slug,
+      title,
+      price,
+      description,
+      image,
+    });
+    if (category1) {
+      product.category.push(category1);
+    }
+    if (category2) {
+      product.category.push(category2);
+    }
+    await product.save();
+
+    return res.json({ product });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
