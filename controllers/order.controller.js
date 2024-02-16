@@ -63,7 +63,7 @@ export const getMyOrders = async (req, res) => {
   try {
     const { email } = req.body;
     console.log(email);
-    const orders = await Order.find({ email })
+    const orders = await Order.find({ accountEmail: email })
       .sort({ updatedAt: -1 })
       .populate("cart", "slug image title price");
 
