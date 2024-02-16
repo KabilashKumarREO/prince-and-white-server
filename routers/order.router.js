@@ -11,6 +11,6 @@ import { mustAuth } from "../middleware/auth.js";
 // routes
 router.post("/add", addNewOrder);
 router.get("/get-order", getOrder);
-router.get("/my-orders", mustAuth, getMyOrders);
+router.post("/my-orders", mustAuth, getMyOrders);
 
 export default router;
