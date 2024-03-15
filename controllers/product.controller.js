@@ -1,5 +1,37 @@
 import Product from "../models/Product.js";
 
+// optimizely sdk import
+import optimizelySDK from "@optimizely/optimizely-sdk";
+
+const optimizelyClientInstance = optimizelySDK.createInstance({
+  sdkKey: process.env.sdkKey,
+});
+
+/*
+optimizelyClientInstance.onReady().then(() => {
+  //optimizelyClientInstance downloaded your Optimizely configuration
+  // console.log("Optimizely client ready");
+
+  function makeid() {
+    var userId = "";
+    userId = String(Math.random());
+    return userId;
+  }
+  // make a random user ID
+  const userId = makeid();
+  const enabled = optimizelyClientInstance.isFeatureEnabled(
+    "discount_fashion",
+    userId
+  );
+  const discountPercentage = optimizelyClientInstance.getFeatureVariable(
+    "discount_fashion",
+    "percentage",
+    userId
+  );
+  console.log("ENABLED: ", enabled, discountPercentage);
+});
+*/
+
 // get all products
 export const allProducts = async (req, res) => {
   try {
@@ -30,15 +62,54 @@ export const getProduct = async (req, res) => {
 export const getCategoryProducts = async (req, res) => {
   try {
     const slug = req.query.categoryId;
-    console.log(slug);
-    const products = await Product.find({ category: { $in: [slug] } }).sort({
+    const products = await Product.find({ category: slug }).sort({
       updatedAt: -1,
     });
 
-    if (products.length === 0)
+    if (products.length === 0) {
       return res.status(400).json({ message: "Category not found" });
+    }
+    let result = [];
+    let userId;
 
-    return res.json({ products });
+    await optimizelyClientInstance.onReady().then(() => {
+      function makeid() {
+        var userId = "";
+        userId = String(Math.random());
+        return userId;
+      }
+      // make a random user ID
+      userId = makeid();
+      const enabled = optimizelyClientInstance.isFeatureEnabled(
+        "discount_fashion",
+        userId
+      );
+      const discountPercentage = optimizelyClientInstance.getFeatureVariable(
+        "discount_fashion",
+        "percentage",
+        userId
+      );
+      if (enabled && slug === "Fashion") {
+        result = products.map((product) => {
+          return {
+            _id: product._id,
+            slug: product.slug,
+            title: product.title,
+            description: product.description,
+            image: product.image,
+            category: product.category,
+            usualPrice: product.price,
+            price: product.price * (1 - discountPercentage / 100),
+          };
+        });
+      } else {
+        result = products;
+      }
+    });
+    var user = optimizelyClientInstance.createUserContext(userId);
+    user.trackEvent("pageview_fashion_category");
+
+    return res.json({ products: result });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
